@@ -10,9 +10,11 @@ router.post('/signup', async (req, res) => {
     const {username, password, name} = req.body
     const userDetails = {username, password, name}
     const isUserDetailsValid = UserSignupSchema.safeParse(userDetails)
+    
     if(!isUserDetailsValid.success) {
         res.status(400).json({
-            message: isUserDetailsValid.error.errors[0]?.message || "something went wrong"
+            message: "validation error",
+            issue: isUserDetailsValid.error.issues[0]
         })
         return 
     }
@@ -54,6 +56,7 @@ router.post('/signup', async (req, res) => {
             }
             else if(e.code === 'P2002') {
                 res.status(400).json({
+                    path: e.meta?.target || "",
                     message: `${e.meta?.target || ""} should be unique`
                 })
                 return
@@ -73,7 +76,8 @@ router.post('/signin', async(req, res) => {
     // checking the validation
     if(!isUserDetailsValid.success) {
         res.status(400).json({
-            message: isUserDetailsValid.error.errors[0]?.message || "user details invalid."
+            issue: isUserDetailsValid.error.issues[0],
+            message: "validation error"
         })
         return 
     }
