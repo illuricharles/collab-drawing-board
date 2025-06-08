@@ -7,3 +7,14 @@ export const UserSignupSchema = z.object({
 })
 
 export const UserSigninSchema = UserSignupSchema.omit({name: true})
+
+export const CreateRoomSchema = z.object({
+    roomName: z.string({message: "Room name required"})
+})
+
+export const UserSignupWithConfirmSchema = UserSignupSchema.extend({
+    confirmPassword: z.string({message: "confirm password required"}).min(8, {message: "password should be minimum 8 characters required"})
+}).refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords did not matched.",
+    path: ["confirmPassword"]
+})
