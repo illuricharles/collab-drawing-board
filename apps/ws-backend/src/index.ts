@@ -4,12 +4,51 @@ import { CustomWebSocket, MessageType } from "./types/websocket";
 import { IncomingMessage } from "http";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv"
+import { Prisma, prisma } from "@repo/db";
 import path from "path";
+import { error } from "console";
 
 dotenv.config({path: path.resolve(__dirname, "../../../.env")})
 
 const wss = new WebSocketServer({port: 8080})
 const activeUsers = ConnectionManager.getInstance()
+
+function handlePrismaErrors(e:unknown, ws:CustomWebSocket) {
+    if(e instanceof Prisma.PrismaClientInitializationError) {
+        ws.send(JSON.stringify({
+                type: "error",
+                message: "unable to reach the database. Please try again later.",
+                code: "DB_INITIALIZATION_ERROR"
+            }))
+            return
+    }
+    else if(e instanceof Prisma.PrismaClientKnownRequestError) {
+        if(e.code === 'P1001') {
+            ws.send(JSON.stringify({
+                type: "error",
+                message: "unable to reach the database. Please try again later.",
+                code: "DB_INITIALIZATION_ERROR"
+            }))
+            return
+        }
+        else if(e.code === 'P1017') {
+            ws.send(JSON.stringify({
+                type: "error",
+                message: "Database connection lost. Please try again later.",
+                code: "DB_CONNECTION_LOST"
+            }))
+            return
+        }
+    }
+    else {
+        ws.send(JSON.stringify({
+            type: 'error',
+            message: "Internal server error",
+            code: 'INTERNAL_SERVER_ERROR'
+        }))
+        return
+    }
+}
 
 function handleWebSocketAuth(ws: CustomWebSocket, message: MessageType) {
     
@@ -48,7 +87,7 @@ wss.on('connection', (ws:CustomWebSocket, req: IncomingMessage) => {
     ws.userId = null 
     ws.isAuthorized = false
 
-    ws.on('message', (data)  => {
+    ws.on('message',async(data)  => {
 
         // check the json format
         let message: MessageType
@@ -68,68 +107,131 @@ wss.on('connection', (ws:CustomWebSocket, req: IncomingMessage) => {
             ws.isAuthorized = handleWebSocketAuth(ws, message)
             return
         }
+        
         else if(message.type === 'joinRoom') {
-            //check user already joined the room
-            //check room exists
+
+            if(message.roomName === null || message.roomName === undefined) {
+                ws.send(JSON.stringify({
+                    type: "error",
+                    message: "Room name required.",
+                    code: "ROOM_REQUIRED"
+                }))
+                return
+            }
 
             try {
-                
-                if(ws.userId && message.roomName){
-                    activeUsers.addUserToRoom(ws.userId, message.roomName)
-                    if(ws.readyState === ws.OPEN) {
-                        ws.send(JSON.stringify({
-                            type: "success",
-                            message: `user joined ${message.roomName} room successfully.`
-                        }))
-                        return
+                const roomDetails = await prisma.room.findUnique({
+                    where: {
+                        slug: message.roomName
                     }
+                })
+                if(roomDetails === null) {
+                    ws.send(JSON.stringify({
+                        type: "error",
+                        message: "Room doesn't exists. Please check the room name again.",
+                        code: "ROOM_NOT_FOUND"
+                    }))
+                    return
                 }
-                else {
-                    if(!ws.userId) {
-                        ws.close(1008, 'Authentication Required')
-                        return
-                    }
-                    else if(!message.roomName) {
-                        ws.send(JSON.stringify({
-                            type: "error",
-                            message: "Invalid json data",
-                            code: "INVALID_JSON_DATA_FORMAT"
-                        }))
-                        return
-                    }
-                }
-            }catch(e) {
+            }
+            catch(e) {
                 console.log(e)
-                ws.send(JSON.stringify({
-                    type: "error",
-                    message: "Failed to join to room",
-                    code: "INTERNAL_SERVER_ERROR"
-                }))
-                return
-            }
-        }
-        else if(message.type === 'chat') {
-            if(!message.payload || !message.payload.message || !message.roomName ) {
-                ws.send(JSON.stringify({
-                    type: 'error',
-                    message: 'Invalid json data',
-                    code: 'INVALID_JSON_FORMAT'
-                }))
-                return
-            }
-            if(!ws.userId) {
-                ws.close(1008, 'Authentication Required')
+                handlePrismaErrors(e, ws)
                 return
             }
 
-            activeUsers.sendMessageToRoom(ws.userId, message.roomName, message.payload.message, ws)
+            if(ws.userId){
+                activeUsers.addUserToRoom(ws.userId, message.roomName, ws)
+            }
+            else {
+                 ws.send(JSON.stringify({
+                    type: "error",
+                    message: "User doesn't exist.",
+                    code: "AUTHENTICATION_REQUIRED"
+                }))
+                ws.close(1008, 'AUTHENTICATION_REQUIRED')
+                return
+            }
         }
-        else if(message.type === 'leaveRoom') {
-            if(!message.roomName) {
+
+        else if(message.type === 'chat') {
+            
+            if(message.roomName === null || message.roomName === undefined) {
                 ws.send(JSON.stringify({
                     type: "error",
-                    message: "Invalid required json format.",
-                    code: "INVALID_DATA"
+                    message: "Room name required.",
+                    code: "ROOM_REQUIRED"
+                }))
+                return 
+            }
+
+            if(!message.payload || !message.payload.message) {
+                ws.send(JSON.stringify({
+                    type: 'error',
+                    message: 'User message is required',
+                    code: 'MESSAGE_REQUIRED'
+                }))
+                return
+            }
+
+            if(!ws.userId) {
+                ws.send(JSON.stringify({
+                    type: "error",
+                    message: "You don't have the required authorization to send the chat. Login required.",
+                    code: "AUTHENTICATION_REQUIRED"
+                }))
+                ws.close(1008, 'AUTHENTICATION_REQUIRE')
+                return
+            }
+            try {
+                const roomDetails = await prisma.room.findUnique({
+                    where: {
+                        slug: message.roomName
+                    }
+                })
+                if(roomDetails === null) {
+                    ws.send(JSON.stringify({
+                        type: "error",
+                        message: "Invalid Room Name.",
+                        code: "ROOM_NOT_FOUND"
+                    }))
+                    return
+                }
+
+                const chatDetails = await prisma.chats.create({
+                    data: {
+                        message: message.payload.message,
+                        senderId: ws.userId,
+                        roomId: roomDetails.id
+                    }
+                })
+
+                activeUsers.sendMessageToRoom(ws.userId, message.roomName, message.payload.message, ws)
+            }
+            catch(e) {
+                console.log(e)
+                if(e instanceof Prisma.PrismaClientKnownRequestError) {
+                    if(e.code === 'P2003') {
+                        ws.send(JSON.stringify({
+                            type: 'error',
+                            message: `Foreign key constrain failed. ${e.meta?.target || "user or room name doesn't exists."}`,
+                            code: "FOREIGN_KEY_CONSTRAIN_FAILED"
+                        }))
+                        return
+                    }
+                }
+                handlePrismaErrors(e, ws)
+                return
+            }
+            
+        }
+
+        else if(message.type === 'leaveRoom') {
+            if(message.roomName === null || message.roomName === undefined) {
+                ws.send(JSON.stringify({
+                    type: "error",
+                    message: "Room Name required.",
+                    code: "ROOM_REQUIRED"
                 }))
                 return
             }

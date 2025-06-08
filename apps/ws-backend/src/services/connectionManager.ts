@@ -35,8 +35,33 @@ export class ConnectionManager {
         console.log(`user ${ws.userId} have ${this.activeUsers.get(userId)?.connections.size} active users`)
     }
 
-    public addUserToRoom(userId:string, room: string) {
-        this.activeUsers.get(userId)?.rooms.add(room)
+    public addUserToRoom(userId:string, room: string, ws:CustomWebSocket) {
+        const userEntry = this.activeUsers.get(userId)
+        if(!userEntry) {
+            ws.send(JSON.stringify({
+                type: "error",
+                message: "User doesn't exist.",
+                code: "AUTHENTICATION_REQUIRED"
+            }))
+            ws.close(1008, 'AUTHENTICATION_REQUIRED')
+            return
+        }
+        if(userEntry.rooms.has(room)) {
+            ws.send(JSON.stringify({
+                type: "error",
+                message: "Your already joined this room.",
+                code: "ALREADY_JOINED_ROOM"
+            }))
+            return
+        }
+        userEntry.rooms.add(room)
+        if(ws.readyState === ws.OPEN) {
+            ws.send(JSON.stringify({
+                type: "success",
+                message: `You joined ${room} room successfully.`
+            }))
+            return
+        }
     }
 
     public removeUserFromRoom(userId: string, room:string, ws:CustomWebSocket) {
@@ -71,7 +96,12 @@ export class ConnectionManager {
     public sendMessageToRoom(userId:string, roomName:string, message:string, userWs: CustomWebSocket) {
         const senderConnections = this.activeUsers.get(userId)
         if(!senderConnections) {
-            userWs.close(1008, "Invalid session state.")
+            userWs.send(JSON.stringify({
+                type: "error",
+                message: "Invalid user",
+                code: "AUTHENTICATION_REQUIRED"
+            }))
+            userWs.close(1008, "AUTHENTICATION_REQUIRED")
             return
         }
 
@@ -96,6 +126,10 @@ export class ConnectionManager {
                 })
             }
         })
+    }
+
+    public checkUserInRoom(userId: string, roomName: string) {
+        return this.activeUsers.get(userId)?.rooms.has(roomName) === true
     }
 
     public removeUserConnection(userId:string, ws:CustomWebSocket) {
