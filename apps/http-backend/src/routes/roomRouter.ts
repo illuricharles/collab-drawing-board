@@ -4,6 +4,10 @@ import { CreateRoomSchema } from "@repo/zod-validations";
 import { Prisma, prisma } from "@repo/db";
 const router:Router = Router()
 
+function generateSlug(name: string) {
+  return name.trim().toLowerCase().replace(/\s+/g, '-');
+}
+
 router.post('/create-room', authMiddleware, async(req, res) => {
     const {roomName} = req.body
     const checkValidation = CreateRoomSchema.safeParse({roomName})
@@ -19,15 +23,20 @@ router.post('/create-room', authMiddleware, async(req, res) => {
         })
         return
     }
+    const slug = generateSlug(roomName)
     try {
         const response = await prisma.room.create({
             data: {
-                slug: roomName,
+                name: roomName,
+                slug,
                 adminId: req.userId
             }
         })
         res.status(201).json({
-            room: response
+            slug: response.slug,
+            id: response.id,
+            roomName: response.name,
+            createdAt: response.createdAt
         })
     }
     catch(e) {
@@ -54,7 +63,8 @@ router.post('/create-room', authMiddleware, async(req, res) => {
             }
             else if(e.code === 'P2002') {
                 res.status(400).json({
-                    message: `Room name should be unique`
+                    path: ['roomName'],
+                    message: `Room already exist.`
                 })
                 return
             }  
