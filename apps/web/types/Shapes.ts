@@ -1,11 +1,11 @@
 export enum ToolTypes {
-  RECTANGLE,
-  ELLIPSE,
-  LINE,
-  RHOMBUS,
-  ARROW,
-  SELECTION,
-  TEXT
+  RECTANGLE = "RECTANGLE",
+  ELLIPSE = "ELLIPSE",
+  LINE = "LINE",
+  RHOMBUS = "RHOMBUS",
+  ARROW = "ARROW",
+  SELECTION = "SELECTION",
+  TEXT = "TEXT"
 }
 
 export interface Rectangle {
@@ -50,7 +50,10 @@ export interface Line {
 
 export interface Selection {
   type: ToolTypes.SELECTION
-
 }
 
-export type Shapes = Rectangle | Ellipse | Line | Rhombus | Arrow | Selection
+export interface TEXT {
+  type: ToolTypes.TEXT
+}
+
+export type Shapes = Rectangle | Ellipse | Line | Rhombus | Arrow | Selection | TEXT

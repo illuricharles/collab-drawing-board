@@ -6,7 +6,7 @@
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
       "outputs": ["dist/**", ".next/**", "!.next/cache/**"],
-      "env": ["HTTP_PORT", "JWT_SECRET", "HTTP_BACKEND_URL", "HTTP_BACKEND", "WS_URL"]
+      "env": ["HTTP_PORT", "JWT_SECRET", "HTTP_BACKEND_URL", "HTTP_BACKEND", "WS_URL", "LOCAL_STORAGE_DRAWING_KEY"]
     },
     "lint": {
       "dependsOn": ["^lint"]
@@ -17,7 +17,7 @@
     "dev": {
       "cache": false,
       "persistent": true,
-      "env": ["HTTP_BACKEND_URL", "HTTP_PORT", "JWT_SECRET", "HTTP_BACKEND", "WS_URL"]
+      "env": ["HTTP_BACKEND_URL", "HTTP_PORT", "JWT_SECRET", "HTTP_BACKEND", "WS_URL", "LOCAL_STORAGE_DRAWING_KEY"]
     }
   }
 }

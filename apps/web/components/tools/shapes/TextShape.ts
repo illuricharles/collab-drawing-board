@@ -172,4 +172,32 @@ export class TextShape extends BaseShape {
 
         return result
     }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    static fromJson(data: any) {
+        if(typeof data.x === 'number' &&
+            typeof data.y === 'number' &&
+            typeof data.fontsize === 'number' &&
+            typeof data.minFontSize === 'number' &&
+            typeof data.id === 'string' && 
+            typeof data.minWidth === 'number' &&
+            data.type === ToolTypes.TEXT &&
+            typeof data.text === 'string' &&
+            typeof data.width === 'number'
+
+        ) {
+            return {
+                x: data.x,
+                y: data.y,
+                fontSize: data.fontsize,
+                minFontSize: data.minFontSize,
+                id: data.id,
+                minWidth: data.minWidth,
+                type: data.type,
+                text: data.text,
+                width: data.width
+            }
+        }
+        return null
+    }
 }

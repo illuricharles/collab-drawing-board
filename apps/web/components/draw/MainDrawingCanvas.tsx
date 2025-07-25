@@ -2,7 +2,7 @@
 
 import { ArrowRight, CircleIcon, DiamondIcon, Hand, LetterTextIcon, LineChartIcon, RectangleHorizontalIcon } from "lucide-react"
 import {  useCallback, useEffect, useRef, useState } from "react"
-import { ToolTypes } from "../../types/Shapes"
+import { Shapes, ToolTypes } from "../../types/Shapes"
 import { ToolbarButton } from "../ToolBarButton";
 import RectangleShape from "../tools/shapes/RectangleShape";
 import { BaseShape } from "../tools/shapes/BaseShape";
@@ -39,49 +39,18 @@ export default function MainDrawingCanvas() {
     let startY: number
     let clicked = false
     let isHandlerSelected = false
-
-    // init canvas
-    const initCanvas = useCallback(() => {
-        const canvas = canvasRef.current
-        if(canvas) {
-            canvas.height = window.innerHeight
-            canvas.width = window.innerWidth
-            const ctx = canvas.getContext('2d')
-            if(ctx) {  
-                contextRef.current = ctx 
-                ctx.fillStyle = "#000000"
-                ctx.fillRect(0,0, canvas.width, canvas.height)
-            }
-        }
-    }, [])
-
-    const drawHandlersRectangle = useCallback((shape: BaseShape,ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number) => {
-        ctx.save()
-        ctx.beginPath()
-        ctx.strokeStyle = "blue"
-        ctx.strokeRect(x, y, width, height)
-        ctx.stroke()
-        ctx.restore()
-        const handlers = getHandleBarPoints(x, y, width, height)
-        drawRectangleHandleBarPoints(handlers, ctx)
-    }, [])
-
     
-    const drawHandlersLine = useCallback((shape: LineShape, ctx: CanvasRenderingContext2D) => {
-        const {startX, endX, startY, endY} = shape
-        const handler = getHandleBarPointLine(startX, startY, endX, endY)
-        const hhs = HANDLER_SIZE/2
-        handler.forEach(eachHandler => {
-            const {x, y} = eachHandler
-            ctx.save()
-            ctx.beginPath()
-            ctx.fillStyle = "blue"
-            ctx.fillRect(x - hhs, y - hhs, HANDLER_SIZE, HANDLER_SIZE)
-            ctx.restore()
-        })
-    }, [])
+    let canvasSavedTimeoutId: NodeJS.Timeout | string | number | undefined
+   
+    function saveCanvasData() {
+        clearTimeout(canvasSavedTimeoutId)
+        canvasSavedTimeoutId = setTimeout(() => {
+            localStorage.setItem('my-drawings', JSON.stringify(shapesManagerRef.current.getAllShapes()))
+            console.log('shapes saved')
+        }, 1000)
+    }
 
-    const drawHandlersRhombus = useCallback((shape: RhombusShape, ctx: CanvasRenderingContext2D) => {
+     const drawHandlersRhombus = useCallback((shape: RhombusShape, ctx: CanvasRenderingContext2D) => {
         const {centerX, centerY, width, height} = shape
         const x = centerX - width/2 
         const y = centerY - height/2 
@@ -98,7 +67,47 @@ export default function MainDrawingCanvas() {
         
     }, [])
 
-    
+    const drawHandlersLine = useCallback((shape: LineShape, ctx: CanvasRenderingContext2D) => {
+        const {startX, endX, startY, endY} = shape
+        const handler = getHandleBarPointLine(startX, startY, endX, endY)
+        const hhs = HANDLER_SIZE/2
+        handler.forEach(eachHandler => {
+            const {x, y} = eachHandler
+            ctx.save()
+            ctx.beginPath()
+            ctx.fillStyle = "blue"
+            ctx.fillRect(x - hhs, y - hhs, HANDLER_SIZE, HANDLER_SIZE)
+            ctx.restore()
+        })
+    }, [])
+
+     const drawHandlersRectangle = useCallback((shape: BaseShape,ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number) => {
+        ctx.save()
+        ctx.beginPath()
+        ctx.strokeStyle = "blue"
+        ctx.strokeRect(x, y, width, height)
+        ctx.stroke()
+        ctx.restore()
+        const handlers = getHandleBarPoints(x, y, width, height)
+        drawRectangleHandleBarPoints(handlers, ctx)
+    }, [])
+
+    // init canvas
+    const initCanvas = useCallback(() => {
+        const canvas = canvasRef.current
+        if (!canvas || !document.body.contains(canvas)) return
+        if(canvas) {
+            canvas.height = window.innerHeight
+            canvas.width = window.innerWidth
+            const ctx = canvas.getContext('2d')
+            if(ctx) {  
+                contextRef.current = ctx 
+                ctx.fillStyle = "#000000"
+                ctx.fillRect(0,0, canvas.width, canvas.height)
+            }
+        }
+    }, [])
+
     const drawOutline = useCallback(() => {
         const shape = selectedShapeRef.current
         const ctx = contextRef.current
@@ -139,27 +148,74 @@ export default function MainDrawingCanvas() {
         }
   }, [drawOutline])
 
-    // initial canvas
     useEffect(() => {
-       initCanvas()
-       clearCanvas()
-    },[initCanvas, clearCanvas])
-
-    // handle resize
-    useEffect(() => {
-    const canvas = canvasRef.current
-    function handleResize() {
-      console.log('resized')
-      if(canvas) {
         initCanvas()
-      }
-    }
-    window.addEventListener('resize', handleResize)
-    return () => {
-      window.removeEventListener('resize', handleResize)
-    }
+        const currentSavedData = localStorage.getItem('my-drawings')
+        let parsedCurrentSavedData: Shapes[] | undefined
+        if(currentSavedData) {
+            try {    
+                parsedCurrentSavedData = JSON.parse(currentSavedData)
+            }
+            catch(e) {
+                console.log(e)
+                return
+            }
+        }
+        
+        if(currentSavedData && parsedCurrentSavedData) {
+            parsedCurrentSavedData.map((eachShape) => {
+                const {type}  = eachShape
+                let shape
+                if(type === ToolTypes.RECTANGLE) {
+                    shape = new RectangleShape(eachShape.x, eachShape.y, eachShape.width, eachShape.height)
+                }
+                else if(type === ToolTypes.ELLIPSE) {
+                    shape = new EllipseShape(eachShape.x, eachShape.y, eachShape.radiusX, eachShape.radiusY)
+                }
+                else if(type === ToolTypes.ARROW) {
+                    shape = new ArrowShape(eachShape.startX, eachShape.startY, eachShape.endX, eachShape.endY)
+                }
+                else if(type === ToolTypes.LINE) {
+                    shape = new LineShape(eachShape.startX, eachShape.startY, eachShape.endX, eachShape.endY)
+                }
+                else if(type === ToolTypes.RHOMBUS) {
+                    shape = new RhombusShape(eachShape.centerX, eachShape.centerY, eachShape.width, eachShape.height)
+                }
+                else if(type === ToolTypes.TEXT) {
+                    const shapeData = TextShape.fromJson(eachShape)
+                    const ctx = contextRef.current
+                    console.log(ctx)
+                    if(shapeData && ctx) {
+                        shape = new TextShape(shapeData.text, shapeData.x, shapeData.y, ctx)
+                        shape.id = shapeData.id
+                        shape.fontsize = shapeData.fontSize
+                        shape.minFontSize = shapeData.minFontSize
+                        shape.minWidth = shapeData.minWidth
+                        shape.width = shapeData.width
+                    }
+                } 
+                if(shape) {
+                    shapesManagerRef.current.addShape(shape)
+                }
+            })
+        }
+        clearCanvas()
+        const canvas = canvasRef.current
+        function handleResize() {
+        
+        if(canvas) {
+            initCanvas()
+            clearCanvas()
+        }
+        }
+        window.addEventListener('resize', handleResize)
+        return () => {
+        window.removeEventListener('resize', handleResize)
+        }
     
-  }, [initCanvas])
+        
+    }, [initCanvas, clearCanvas])
+
 
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -333,7 +389,6 @@ export default function MainDrawingCanvas() {
                         const dh = clientY - y;
                         let isRadiusNeg = false
                         let newRadius = selectedShape.radiusY +  dh/2 
-                        console.log(newRadius)
                         let newCenter = selectedShape.y + dh/2
                         if(newRadius < 3) {
                             newRadius = 3 
@@ -778,7 +833,6 @@ export default function MainDrawingCanvas() {
                     }
                 }
                 else if( shape instanceof RhombusShape) {
-                    console.log('rhombus selected')
                     shape.centerX = clientX - offsetRef.current.x
                     shape.centerY = clientY - offsetRef.current.y
                 }
@@ -864,8 +918,8 @@ export default function MainDrawingCanvas() {
                 if(text.trim()) {
                     const textShape = new TextShape(text, x, y, ctx)
                     shapesManagerRef.current.addShape(textShape)
+                    saveCanvasData()
                     clearCanvas()
-                    
                 }
                 input.remove()
             })
@@ -905,7 +959,6 @@ export default function MainDrawingCanvas() {
                         direction,
                         selectedShape: currentShape
                     }
-                    console.log(selectedShapeHandlersRef.current)
                     return
                 }
         
@@ -939,7 +992,6 @@ export default function MainDrawingCanvas() {
                         direction,
                         selectedShape: currentShape
                     }
-                    console.log(selectedShapeHandlersRef.current)
                     return
                 }
             }
@@ -971,7 +1023,6 @@ export default function MainDrawingCanvas() {
                         direction,
                         selectedShape: currentShape
                     }
-                    console.log(selectedShapeHandlersRef.current)
                     return
                 }
             }
@@ -1000,7 +1051,6 @@ export default function MainDrawingCanvas() {
                         direction,
                         selectedShape: currentShape
                     }
-                    console.log(selectedShapeHandlersRef.current)
                     return
                 }
             }
@@ -1028,7 +1078,6 @@ export default function MainDrawingCanvas() {
                         direction,
                         selectedShape: currentShape
                     }
-                    console.log(selectedShapeHandlersRef.current)
                     return
                 }
                 
@@ -1057,7 +1106,6 @@ export default function MainDrawingCanvas() {
                         direction,
                         selectedShape: currentShape
                     }
-                    console.log(selectedShapeHandlersRef.current)
                     return
                 }
             }
@@ -1082,7 +1130,6 @@ export default function MainDrawingCanvas() {
                     isLineAllowed = false
                 }
             }
-            console.log(drawingShapeRef.current)
             if(isLineShape) {
                 
                 if(isLineAllowed) {
@@ -1098,6 +1145,7 @@ export default function MainDrawingCanvas() {
         drawingShapeRef.current = null
         isHandlerSelected =false 
         selectedShapeHandlersRef.current = null
+        saveCanvasData()
     }
 
     function onClickTool(type: ToolTypes) {
@@ -1170,9 +1218,7 @@ export default function MainDrawingCanvas() {
         
         if(shape) {
             if((shape instanceof TextShape)) {
-                console.log(shape)
                 if(ctx && shape && canvasRef.current) {
-                    console.log('text')
                     clearCanvas()
                     const canvasRect = canvasRef.current.getBoundingClientRect();
 
@@ -1210,7 +1256,6 @@ export default function MainDrawingCanvas() {
                         const text = input.value
                         shape.text = text
                         const width = shape.setWidthEdit(ctx)
-                        console.log(width)
                         input.style.width = `${width}px `
                         input.style.height = `${shape.getHeight(ctx)}px`
                         
@@ -1278,8 +1323,8 @@ export default function MainDrawingCanvas() {
                     if(text.trim()) {
                         const textShape = new TextShape(text, x, y, ctx)
                         shapesManagerRef.current.addShape(textShape)
+                        saveCanvasData()
                         clearCanvas()
-                        
                     }
                     input.remove()
                 })
