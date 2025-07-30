@@ -4,7 +4,8 @@ export enum MessageType {
   Success = 'Success',
   SendMessage = 'SendMessage',
   JoinRoom = 'JoinRoom',
-  BroadcastMessage = "BroadcastMessage"
+  BroadcastMessage = "BroadcastMessage",
+  LeaveRoom = "LeaveRoom"
 }
 
 export enum ErrorCodes {
@@ -18,6 +19,11 @@ export enum ErrorCodes {
 interface BaseMessage {
   type: MessageType;
   message: string;
+}
+
+export interface LeaveRoom {
+  type: MessageType.LeaveRoom,
+  roomId: string
 }
 
 export interface ErrorMessage extends BaseMessage {
@@ -38,7 +44,8 @@ export interface BroadcastMessage extends BaseMessage{
   type: MessageType.BroadcastMessage,
   message: string,
   roomId: string,
-  senderId: string
+  senderId: string,
+  timestamp: number
 }
 
 
@@ -48,4 +55,4 @@ export interface JoinRoomMessage{
 }
 
 // Union of all messages
-export type Message = ErrorMessage | SuccessMessage | SendMessage | JoinRoomMessage | BroadcastMessage;
+export type Message = ErrorMessage | SuccessMessage | SendMessage | JoinRoomMessage | BroadcastMessage | LeaveRoom;

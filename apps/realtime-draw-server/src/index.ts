@@ -5,15 +5,34 @@ import { ErrorCodes, Message, MessageType } from "./types/MessageTypes";
 import {v4 as uuidv4} from 'uuid'
 
 const wss = new WebSocketServer({port: 8080})
+const HEART_BEAT_INTERVAL = 30000
 
 const roomManager = RoomManager.getInstance()
-console.log(roomManager)
+
+// heartBeat 
+
+const heartBeatInterval = setInterval(() => {
+    wss.clients.forEach((ws) => {
+        const client = ws as CustomWebSocket
+        if(!client.isAlive) {
+            roomManager.handleClientDisconnection(client)
+            return client.terminate()
+        }
+        client.isAlive = false
+        client.ping()
+    })
+}, HEART_BEAT_INTERVAL)
 
 wss.on('connection', (ws) => {
 
     const client = ws as CustomWebSocket
     client.id = uuidv4()
-    client.roomsJoined = []
+    client.roomsJoined = [],
+    client.isAlive = true
+
+    client.on('pong', () => {
+        client.isAlive = true
+    })
 
     client.on('message', (data) => {
         const userData = data.toString()
@@ -67,21 +86,6 @@ wss.on('connection', (ws) => {
                     parsedData.message.trim() !== ""
                  ) {
                     roomManager.sendMessageToRoom(client, parsedData.roomId, parsedData)
-                    // if(client.roomsJoined.includes(parsedData.roomId)) {
-                    //     sendMessageToRoom(client.id, {
-                    //         type: MessageType.BroadcastMessage,
-                    //         roomId: parsedData.roomId,
-                    //         message: parsedData.message,
-                    //         senderId: client.id
-                    //     })
-                    // }
-                    // else {
-                    //     sendMessageToClient(client.id, {
-                    //         type: MessageType.Error,
-                    //         code: ErrorCodes.RoomNotJoined,
-                    //         message: "You have to join the room to send the messages."
-                    //     })
-                    // }
                 }
                 else {
                     sendMessageToClient(client.id, {
@@ -92,7 +96,18 @@ wss.on('connection', (ws) => {
                 }
 
                 break
-
+            case MessageType.LeaveRoom: 
+                if(typeof parsedData.roomId === 'string' && parsedData.roomId.trim() !== "") {
+                    roomManager.removeClientFromRoom(client, parsedData.roomId)
+                }
+                else {
+                    roomManager.sendMessageToClient(client, {
+                        type: MessageType.Error,
+                        code: ErrorCodes.InvalidMessage,
+                        message: "Invalid message format"
+                    })
+                }
+                break;
             default:
                 sendMessageToClient(client.id, {
                     type: MessageType.Error,
@@ -103,7 +118,8 @@ wss.on('connection', (ws) => {
     })
 
     client.on('close', (code, reason) => {
-        console.log(code, reason)
+        roomManager.handleClientDisconnection(client)
+        console.log(code, reason.toString())
     })
 
     client.on('error', (error) => {
@@ -116,6 +132,7 @@ wss.on('connection', (ws) => {
 wss.on('error', (error) => {
     console.log(error)
 })
+
 
 // use map
 function sendMessageToClient(clientId: string | undefined, message: Message) {
