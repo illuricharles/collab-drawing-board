@@ -1,4 +1,4 @@
-import { BaseShape } from "./shapes/BaseShape";
+import { BaseShape } from "../shapes/BaseShape";
 
 export default class ShapeManager {
     private shape: Map<string, BaseShape> = new Map()

@@ -9,6 +9,7 @@ export enum ToolTypes {
 }
 
 export interface Rectangle {
+  id: string,
   type : ToolTypes.RECTANGLE,
   x: number,
   y: number,
@@ -17,6 +18,7 @@ export interface Rectangle {
 }
 
 export interface Arrow {
+  id: string,
   type: ToolTypes.ARROW,
   startX: number,
   startY: number
@@ -25,6 +27,7 @@ export interface Arrow {
 }
 
 export interface Rhombus {
+  id: string,
   type: ToolTypes.RHOMBUS,
   centerX: number,
   centerY: number,
@@ -33,6 +36,7 @@ export interface Rhombus {
 }
 
 export interface Ellipse {
+  id: string,
   type:ToolTypes.ELLIPSE,
   x: number,
   y: number,
@@ -41,6 +45,7 @@ export interface Ellipse {
 }
 
 export interface Line {
+  id: string,
   type: ToolTypes.LINE,
   startX: number,
   startY: number,
@@ -53,6 +58,7 @@ export interface Selection {
 }
 
 export interface TEXT {
+  id: string,
   type: ToolTypes.TEXT
 }
 

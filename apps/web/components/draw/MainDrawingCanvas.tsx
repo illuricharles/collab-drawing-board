@@ -6,7 +6,7 @@ import { Shapes, ToolTypes } from "../../types/Shapes"
 import { ToolbarButton } from "../ToolBarButton";
 import RectangleShape from "../tools/shapes/RectangleShape";
 import { BaseShape } from "../tools/shapes/BaseShape";
-import ShapeManager from "../tools/ShapesManager";
+import ShapeManager from "../tools/manager/ShapesManager";
 import LineShape from "../tools/shapes/LineShape";
 import EllipseShape from "../tools/shapes/EllipseShape";
 import RhombusShape from "../tools/shapes/RhombusShape";
@@ -41,13 +41,17 @@ export default function MainDrawingCanvas() {
     let isHandlerSelected = false
     
     let canvasSavedTimeoutId: NodeJS.Timeout | string | number | undefined
-   
+
+    function saveAllShapes() {
+        localStorage.setItem('my-drawings', JSON.stringify(shapesManagerRef.current.getAllShapes()))
+        console.log('shapes saved')
+    }
+
     function saveCanvasData() {
         clearTimeout(canvasSavedTimeoutId)
         canvasSavedTimeoutId = setTimeout(() => {
-            localStorage.setItem('my-drawings', JSON.stringify(shapesManagerRef.current.getAllShapes()))
-            console.log('shapes saved')
-        }, 1000)
+            saveAllShapes()
+        }, 500)
     }
 
      const drawHandlersRhombus = useCallback((shape: RhombusShape, ctx: CanvasRenderingContext2D) => {
@@ -166,6 +170,8 @@ export default function MainDrawingCanvas() {
             parsedCurrentSavedData.map((eachShape) => {
                 const {type}  = eachShape
                 let shape
+                if(type === ToolTypes.SELECTION) return 
+
                 if(type === ToolTypes.RECTANGLE) {
                     shape = new RectangleShape(eachShape.x, eachShape.y, eachShape.width, eachShape.height)
                 }
@@ -184,7 +190,6 @@ export default function MainDrawingCanvas() {
                 else if(type === ToolTypes.TEXT) {
                     const shapeData = TextShape.fromJson(eachShape)
                     const ctx = contextRef.current
-                    console.log(ctx)
                     if(shapeData && ctx) {
                         shape = new TextShape(shapeData.text, shapeData.x, shapeData.y, ctx)
                         shape.id = shapeData.id
@@ -195,6 +200,7 @@ export default function MainDrawingCanvas() {
                     }
                 } 
                 if(shape) {
+                    shape.id = eachShape.id
                     shapesManagerRef.current.addShape(shape)
                 }
             })
@@ -240,6 +246,8 @@ export default function MainDrawingCanvas() {
         const {clientX, clientY} = e
         if(clicked && ctx) {
             clearCanvas()
+
+            // draw logic 
             if(tool === ToolTypes.RECTANGLE && drawingShapeRef.current instanceof RectangleShape) {
                 const rectangle = drawingShapeRef.current
                 rectangle.width = clientX - rectangle.x
@@ -279,8 +287,11 @@ export default function MainDrawingCanvas() {
                 arrow.draw(ctx)
                 
             }
+
+            // resize logic
             else if(isHandlerSelected && selectedShapeHandlersRef.current) {
                 const {selectedShape, startX, startY, direction, y, x} = selectedShapeHandlersRef.current
+                console.log('resize shape')
                 if(selectedShape instanceof RectangleShape) {
                     if(direction === 'right') {
                         const dw = clientX - startX 
@@ -793,8 +804,11 @@ export default function MainDrawingCanvas() {
                 }
 
             }
+
+            // move logic
             else if(tool === ToolTypes.SELECTION && selectedShapeRef.current) {
                 const shape = selectedShapeRef.current
+                console.log('move shape')
                 if(shape instanceof RectangleShape) {
                     shape.x = clientX - offsetRef.current.x
                     shape.y = clientY - offsetRef.current.y
@@ -1216,6 +1230,7 @@ export default function MainDrawingCanvas() {
         const ctx = contextRef.current
         const shape = selectedShapeRef.current
         
+        // select text when double click
         if(shape) {
             if((shape instanceof TextShape)) {
                 if(ctx && shape && canvasRef.current) {
@@ -1331,8 +1346,6 @@ export default function MainDrawingCanvas() {
             }
         }        
     }
-
-    
 
     return <div className="h-screen w-screen overflow-hidden">
     <div className="fixed bg-white flex justify-center items-center gap-x-0.5 top-1 left-3 rounded p-1">
