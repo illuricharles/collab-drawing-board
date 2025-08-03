@@ -1,18 +1,21 @@
 "use client"
 
 import { ArrowRight, CircleIcon, DiamondIcon, Hand, LetterTextIcon, LineChartIcon, RectangleHorizontalIcon } from "lucide-react"
-import {  useCallback, useEffect, useRef, useState } from "react"
+import {  RefObject, useCallback, useEffect, useRef, useState } from "react"
 import { Shapes, ToolTypes } from "../../types/Shapes"
 import { ToolbarButton } from "../ToolBarButton";
 import RectangleShape from "../tools/shapes/RectangleShape";
 import { BaseShape } from "../tools/shapes/BaseShape";
-import ShapeManager from "../tools/manager/ShapesManager";
+// import ShapeManager from "../tools/manager/ShapesManager";
 import LineShape from "../tools/shapes/LineShape";
 import EllipseShape from "../tools/shapes/EllipseShape";
 import RhombusShape from "../tools/shapes/RhombusShape";
 import ArrowShape from "../tools/shapes/ArrowShape";
 import { drawRectangleHandleBarPoints, getHandleBarPointLine, getHandleBarPoints, HANDLER_SIZE, ResizeHandle } from "../tools/utils/handleBarUtils";
 import { TextShape } from "../tools/shapes/TextShape";
+// import LocalShapeManager from "../tools/manager/LocalShapeManager";
+import IShapeManager from "../tools/manager/IShapeManager";
+import CollabShapeManager from "../tools/manager/CollabShapeManager";
 
 type selectedShapeHandlerType = ResizeHandle & {
     selectedShape: BaseShape,
@@ -25,34 +28,54 @@ const TEXT_SHAPE_OUTLINE_OFFSET_Y = 4
 const TEXT_SHAPE_OUTLINE_OFFSET_WIDTH = TEXT_SHAPE_OUTLINE_OFFSET_X + 8
 const TEXT_SHAPE_OUTLINE_OFFSET_HEIGHT = 5
 
-export default function MainDrawingCanvas() {
+export default function MainDrawingCanvas({shapesManagerRef, handleContext, setClearCanvas}: {
+    shapesManagerRef: RefObject<IShapeManager>,
+    handleContext?: (ctx: CanvasRenderingContext2D) => void,
+    setClearCanvas?: (handler: () => void) => void
+}) {
     const [tool, setTool] = useState<ToolTypes | null>(null)
     const canvasRef = useRef<HTMLCanvasElement>(null)
     const contextRef = useRef<CanvasRenderingContext2D>(null)
     const drawingShapeRef = useRef<BaseShape | null>(null)
-    const shapesManagerRef = useRef<ShapeManager>(new ShapeManager())
+    // const shapesManagerRef = useRef<IShapeManager>(new LocalShapeManager())
     const selectedShapeRef = useRef<BaseShape>(null)
     const offsetRef = useRef<{x: number, y: number}>({x: 0, y: 0})
     const selectedShapeHandlersRef = useRef<selectedShapeHandlerType>(null)
+    const isInstanceOfCollab = shapesManagerRef.current instanceof CollabShapeManager
 
     let startX: number
     let startY: number
     let clicked = false
     let isHandlerSelected = false
     
-    let canvasSavedTimeoutId: NodeJS.Timeout | string | number | undefined
+    const canvasSavedTimeoutIdRef = useRef<NodeJS.Timeout | null>(null)
+    console.log(shapesManagerRef.current.getAllShapes())
 
-    function saveAllShapes() {
-        localStorage.setItem('my-drawings', JSON.stringify(shapesManagerRef.current.getAllShapes()))
-        console.log('shapes saved')
-    }
+    const saveAllShapes = useCallback(()  => {
+        const shapes = shapesManagerRef.current.getAllShapes()
+        if(!isInstanceOfCollab) {
+            localStorage.setItem('my-drawings', JSON.stringify(shapes))
+            console.log('shapes saved')
+        }
+        
+    }, [shapesManagerRef, isInstanceOfCollab])
 
-    function saveCanvasData() {
-        clearTimeout(canvasSavedTimeoutId)
-        canvasSavedTimeoutId = setTimeout(() => {
+    const saveCanvasData = useCallback(() => {
+        if(!isInstanceOfCollab) {
+
+            if(canvasSavedTimeoutIdRef.current) {
+                clearTimeout(canvasSavedTimeoutIdRef.current)
+            }
+            canvasSavedTimeoutIdRef.current = setTimeout(() => {
+                saveAllShapes()
+            }, 500)
+        }
+        else {
             saveAllShapes()
-        }, 500)
-    }
+        }
+    }, [saveAllShapes, isInstanceOfCollab])
+
+    
 
      const drawHandlersRhombus = useCallback((shape: RhombusShape, ctx: CanvasRenderingContext2D) => {
         const {centerX, centerY, width, height} = shape
@@ -108,9 +131,12 @@ export default function MainDrawingCanvas() {
                 contextRef.current = ctx 
                 ctx.fillStyle = "#000000"
                 ctx.fillRect(0,0, canvas.width, canvas.height)
+                if(handleContext) {
+                    handleContext(ctx)
+                }
             }
         }
-    }, [])
+    }, [handleContext])
 
     const drawOutline = useCallback(() => {
         const shape = selectedShapeRef.current
@@ -150,60 +176,69 @@ export default function MainDrawingCanvas() {
         shapesManagerRef.current.drawAllShapes(ctx)
         drawOutline()
         }
-  }, [drawOutline])
+  }, [drawOutline, shapesManagerRef])
+
+  useEffect(() => {
+    if(setClearCanvas) {
+        setClearCanvas(clearCanvas)
+    }
+  }, [clearCanvas, setClearCanvas])
+  
 
     useEffect(() => {
         initCanvas()
-        const currentSavedData = localStorage.getItem('my-drawings')
-        let parsedCurrentSavedData: Shapes[] | undefined
-        if(currentSavedData) {
-            try {    
-                parsedCurrentSavedData = JSON.parse(currentSavedData)
+        if(!isInstanceOfCollab) {
+            const currentSavedData = localStorage.getItem('my-drawings')
+            let parsedCurrentSavedData: Shapes[] | undefined
+            if(currentSavedData) {
+                try {    
+                    parsedCurrentSavedData = JSON.parse(currentSavedData)
+                }
+                catch(e) {
+                    console.log(e)
+                    return
+                }
             }
-            catch(e) {
-                console.log(e)
-                return
-            }
-        }
-        
-        if(currentSavedData && parsedCurrentSavedData) {
-            parsedCurrentSavedData.map((eachShape) => {
-                const {type}  = eachShape
-                let shape
-                if(type === ToolTypes.SELECTION) return 
+            
+            if(currentSavedData && parsedCurrentSavedData) {
+                parsedCurrentSavedData.map((eachShape) => {
+                    const {type}  = eachShape
+                    let shape
+                    if(type === ToolTypes.SELECTION) return 
 
-                if(type === ToolTypes.RECTANGLE) {
-                    shape = new RectangleShape(eachShape.x, eachShape.y, eachShape.width, eachShape.height)
-                }
-                else if(type === ToolTypes.ELLIPSE) {
-                    shape = new EllipseShape(eachShape.x, eachShape.y, eachShape.radiusX, eachShape.radiusY)
-                }
-                else if(type === ToolTypes.ARROW) {
-                    shape = new ArrowShape(eachShape.startX, eachShape.startY, eachShape.endX, eachShape.endY)
-                }
-                else if(type === ToolTypes.LINE) {
-                    shape = new LineShape(eachShape.startX, eachShape.startY, eachShape.endX, eachShape.endY)
-                }
-                else if(type === ToolTypes.RHOMBUS) {
-                    shape = new RhombusShape(eachShape.centerX, eachShape.centerY, eachShape.width, eachShape.height)
-                }
-                else if(type === ToolTypes.TEXT) {
-                    const shapeData = TextShape.fromJson(eachShape)
-                    const ctx = contextRef.current
-                    if(shapeData && ctx) {
-                        shape = new TextShape(shapeData.text, shapeData.x, shapeData.y, ctx)
-                        shape.id = shapeData.id
-                        shape.fontsize = shapeData.fontSize
-                        shape.minFontSize = shapeData.minFontSize
-                        shape.minWidth = shapeData.minWidth
-                        shape.width = shapeData.width
+                    if(type === ToolTypes.RECTANGLE) {
+                        shape = new RectangleShape(eachShape.x, eachShape.y, eachShape.width, eachShape.height)
                     }
-                } 
-                if(shape) {
-                    shape.id = eachShape.id
-                    shapesManagerRef.current.addShape(shape)
-                }
-            })
+                    else if(type === ToolTypes.ELLIPSE) {
+                        shape = new EllipseShape(eachShape.x, eachShape.y, eachShape.radiusX, eachShape.radiusY)
+                    }
+                    else if(type === ToolTypes.ARROW) {
+                        shape = new ArrowShape(eachShape.startX, eachShape.startY, eachShape.endX, eachShape.endY)
+                    }
+                    else if(type === ToolTypes.LINE) {
+                        shape = new LineShape(eachShape.startX, eachShape.startY, eachShape.endX, eachShape.endY)
+                    }
+                    else if(type === ToolTypes.RHOMBUS) {
+                        shape = new RhombusShape(eachShape.centerX, eachShape.centerY, eachShape.width, eachShape.height)
+                    }
+                    else if(type === ToolTypes.TEXT) {
+                        const shapeData = TextShape.fromJson(eachShape)
+                        const ctx = contextRef.current
+                        if(shapeData && ctx) {
+                            shape = new TextShape(shapeData.text, shapeData.x, shapeData.y, ctx)
+                            shape.id = shapeData.id
+                            shape.fontsize = shapeData.fontSize
+                            shape.minFontSize = shapeData.minFontSize
+                            shape.minWidth = shapeData.minWidth
+                            shape.width = shapeData.width
+                        }
+                    } 
+                    if(shape) {
+                        shape.id = eachShape.id
+                        shapesManagerRef.current.addShape(shape)
+                    }
+                })
+            }
         }
         clearCanvas()
         const canvas = canvasRef.current
@@ -220,7 +255,7 @@ export default function MainDrawingCanvas() {
         }
     
         
-    }, [initCanvas, clearCanvas])
+    }, [initCanvas, clearCanvas, shapesManagerRef, isInstanceOfCollab])
 
 
   useEffect(() => {
@@ -229,6 +264,7 @@ export default function MainDrawingCanvas() {
             if(selectedShapeRef.current) {
                 shapesManagerRef.current.delete(selectedShapeRef.current)
                 selectedShapeRef.current = null
+                saveCanvasData()
                 clearCanvas()
             }
         }
@@ -237,7 +273,7 @@ export default function MainDrawingCanvas() {
     return () => {
         window.removeEventListener('keydown', handleKeyDown)
     }
-  }, [clearCanvas])
+  }, [clearCanvas, shapesManagerRef, saveCanvasData])
 
 
 
@@ -1158,6 +1194,9 @@ export default function MainDrawingCanvas() {
         }
         drawingShapeRef.current = null
         isHandlerSelected =false 
+        if(selectedShapeRef.current && shapesManagerRef.current instanceof CollabShapeManager) {
+            shapesManagerRef.current.updateShape(selectedShapeRef.current)
+        }
         selectedShapeHandlersRef.current = null
         saveCanvasData()
     }

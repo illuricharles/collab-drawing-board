@@ -1,7 +1,8 @@
+import { Shapes } from "../../../types/Shapes";
 import { BaseShape } from "../shapes/BaseShape";
 
 export default class ShapeManager {
-    private shape: Map<string, BaseShape> = new Map()
+    protected shape: Map<string, BaseShape> = new Map()
 
     drawAllShapes(ctx: CanvasRenderingContext2D) {
         this.shape.forEach(currentShape => currentShape.draw(ctx))
@@ -20,6 +21,9 @@ export default class ShapeManager {
         this.shape.clear()
     }
     delete(shape: BaseShape) {
+        console.log(shape.id)
         this.shape.delete(shape.id)
+        console.log(this.shape)
     }
+
 }
