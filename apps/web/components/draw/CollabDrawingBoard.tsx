@@ -2,7 +2,6 @@
 import { RefObject, useCallback, useEffect, useRef } from "react";
 import MainDrawingCanvas from "./MainDrawingCanvas";
 import IShapeManager from "../tools/manager/IShapeManager";
-// import LocalShapeManager from "../tools/manager/LocalShapeManager";
 import useWebSocket from "../../hooks/useWebSocket";
 import CollabShapeManager from "../tools/manager/CollabShapeManager";
 import { Shapes, ToolTypes } from "../../types/Shapes";
@@ -12,6 +11,7 @@ import ArrowShape from "../tools/shapes/ArrowShape";
 import LineShape from "../tools/shapes/LineShape";
 import RhombusShape from "../tools/shapes/RhombusShape";
 import { TextShape } from "../tools/shapes/TextShape";
+import {BroadcastMessage, MessageType} from "@repo/ws-shared-types"
 
 interface UpdateShapeMessage {
     operationOnShape: 'UpdateShape',
@@ -87,13 +87,7 @@ export default function CollabDrawingBoard() {
         if(!connected) return 
         
         setOnMessageHandler((data) => {
-            let parsedData: {
-                type: "BroadcastMessage",
-                message: string,
-                roomId: string,
-                senderId: string,
-                timestamp: Date
-            }
+            let parsedData: BroadcastMessage
             try {
                 parsedData = JSON.parse(data)
             }
@@ -103,7 +97,7 @@ export default function CollabDrawingBoard() {
             }
 
             switch (parsedData.type) {
-                case 'BroadcastMessage': {
+                case MessageType.BroadcastMessage: {
                     let parsedMessageShape: UpdateShapeMessage | DeleteShapeMessage | AddShapeMessage;
 
                     try {
@@ -122,7 +116,7 @@ export default function CollabDrawingBoard() {
                                 if (parsedMessageShape.operationOnShape === 'UpdateShape') {
                                     shapesManagerRef.current.onUpdateMessage(shape);
                                 } else if (parsedMessageShape.operationOnShape === 'AddShape') {
-                                    shapesManagerRef.current.addShape(shape, true);
+                                    shapesManagerRef.current.onAddShapeMessage(shape);
                                 }
                                 handleClearCanvas.current();
                             }

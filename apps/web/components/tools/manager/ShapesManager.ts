@@ -1,4 +1,4 @@
-import { Shapes } from "../../../types/Shapes";
+
 import { BaseShape } from "../shapes/BaseShape";
 
 export default class ShapeManager {

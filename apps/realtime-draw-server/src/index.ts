@@ -1,7 +1,7 @@
 import { WebSocketServer, WebSocket } from "ws";
 import { RoomManager } from "./services/RoomManager";
 import { CustomWebSocket } from "./types/CustomWebSocket";
-import { ErrorCodes, Message, MessageType } from "./types/MessageTypes";
+import { ErrorCodes, Message, MessageType } from "@repo/ws-shared-types";
 import {v4 as uuidv4} from 'uuid'
 
 const wss = new WebSocketServer({port: 8080})
