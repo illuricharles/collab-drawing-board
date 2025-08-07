@@ -1,6 +1,6 @@
 import { CustomWebSocket } from "../types/CustomWebSocket"
 import { WebSocket } from "ws"
-import { BroadcastMessage, ErrorCodes, Message, MessageType, SendMessage } from "../types/MessageTypes"
+import { BroadcastMessage, ErrorCodes, Message, MessageType, SendMessage } from "@repo/ws-shared-types"
 
 export class RoomManager {
     private static instance: RoomManager

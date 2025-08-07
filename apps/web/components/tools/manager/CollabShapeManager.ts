@@ -3,7 +3,8 @@ import AbstractShapeManager from "./AbstractShapeManager";
 import {SendMessage, MessageType} from "@repo/ws-shared-types"
 
 export default class CollabShapeManager extends AbstractShapeManager {
-    constructor(private sendMessage: (message: string) => void) {
+    
+    constructor(private roomId: string, private sendMessage: (message: string) => void) {
         super()
     }
 
@@ -11,7 +12,7 @@ export default class CollabShapeManager extends AbstractShapeManager {
         this.shape.set(shape.id, shape)
         const message:SendMessage = {
             type: MessageType.SendMessage,
-            roomId: "1",
+            roomId: this.roomId,
             message: JSON.stringify({
                 operationOnShape: 'AddShape',
                 shape: JSON.stringify(shape)
@@ -31,7 +32,7 @@ export default class CollabShapeManager extends AbstractShapeManager {
     updateShape(shape:BaseShape): void {
         const message: SendMessage = {
             type: MessageType.SendMessage,
-            roomId: '1',
+            roomId: this.roomId,
             message: JSON.stringify({
                 operationOnShape: 'UpdateShape',
                 shape: JSON.stringify(shape)
@@ -44,7 +45,7 @@ export default class CollabShapeManager extends AbstractShapeManager {
         this.shape.delete(shape.id)
         const message: SendMessage = {
             type: MessageType.SendMessage,
-            roomId: '1',
+            roomId: this.roomId,
             message: JSON.stringify({
                 operationOnShape: 'DeleteShape',
                 shapeId: shape.id

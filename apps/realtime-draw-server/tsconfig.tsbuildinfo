@@ -1,1 +1,1 @@
-{"root":["./src/index.ts","./src/services/roommanager.ts","./src/types/customwebsocket.ts","./src/types/messagetypes.ts"],"version":"5.9.2"}
+{"root":["./src/index.ts","./src/services/roommanager.ts","./src/types/customwebsocket.ts"],"version":"5.9.2"}

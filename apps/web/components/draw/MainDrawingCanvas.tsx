@@ -2,6 +2,7 @@
 
 import { ArrowRight, CircleIcon, DiamondIcon, Hand, LetterTextIcon, LineChartIcon, RectangleHorizontalIcon } from "lucide-react"
 import {  RefObject, useCallback, useEffect, useRef, useState } from "react"
+import React from "react"
 import { Shapes, ToolTypes } from "../../types/Shapes"
 import { ToolbarButton } from "../ToolBarButton";
 import RectangleShape from "../tools/shapes/RectangleShape";
@@ -28,7 +29,7 @@ const TEXT_SHAPE_OUTLINE_OFFSET_Y = 4
 const TEXT_SHAPE_OUTLINE_OFFSET_WIDTH = TEXT_SHAPE_OUTLINE_OFFSET_X + 8
 const TEXT_SHAPE_OUTLINE_OFFSET_HEIGHT = 5
 
-export default function MainDrawingCanvas({shapesManagerRef, handleContext, setClearCanvas}: {
+function MainDrawingCanvas({shapesManagerRef, handleContext, setClearCanvas}: {
     shapesManagerRef: RefObject<IShapeManager>,
     handleContext?: (ctx: CanvasRenderingContext2D) => void,
     setClearCanvas?: (handler: () => void) => void
@@ -49,9 +50,10 @@ export default function MainDrawingCanvas({shapesManagerRef, handleContext, setC
     let isHandlerSelected = false
     
     const canvasSavedTimeoutIdRef = useRef<NodeJS.Timeout | null>(null)
-    console.log(shapesManagerRef.current.getAllShapes())
+    
 
     const saveAllShapes = useCallback(()  => {
+        
         const shapes = shapesManagerRef.current.getAllShapes()
         if(!isInstanceOfCollab) {
             localStorage.setItem('my-drawings', JSON.stringify(shapes))
@@ -1400,3 +1402,5 @@ export default function MainDrawingCanvas({shapesManagerRef, handleContext, setC
         <canvas ref={canvasRef} onMouseMove={handleMouseMove} onMouseDown={handleMouseDown} onMouseUp={handleMouseUp} onDoubleClick={handleDoubleClick}/>
     </div>
 }
+
+export default React.memo(MainDrawingCanvas)
