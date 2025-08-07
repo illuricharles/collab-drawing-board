@@ -1,5 +1,5 @@
 "use client"
-import { RefObject, useCallback, useEffect, useRef } from "react";
+import { RefObject, useCallback, useEffect, useRef, useState } from "react";
 import React from "react";
 import MainDrawingCanvas from "./MainDrawingCanvas";
 import IShapeManager from "../tools/manager/IShapeManager";
@@ -14,6 +14,9 @@ import RhombusShape from "../tools/shapes/RhombusShape";
 import { TextShape } from "../tools/shapes/TextShape";
 import {BroadcastMessage, MessageType} from "@repo/ws-shared-types"
 import { useRouter } from "next/navigation";
+import { MenuIcon, X } from "lucide-react";
+import { ToolbarButton } from "../ToolBarButton";
+import { FaUsers } from "react-icons/fa";
 
 interface UpdateShapeMessage {
     operationOnShape: 'UpdateShape',
@@ -69,16 +72,28 @@ function getShape(eachShape: Shapes, contextRef: RefObject<CanvasRenderingContex
     return
 }
 
-// write ws logic
-// add roomId to the shape manager
-// change the roomId on messages
-
 function CollabDrawingBoard() {
     const {connectionState, sendMessage, setOnMessageHandler, error, roomId}= useWebSocket()
     const shapesManagerRef = useRef<IShapeManager | null>(null)
     const contextRef = useRef<CanvasRenderingContext2D | null>(null)
     const handleClearCanvas = useRef<() => void>(() => {})
     const router = useRouter()
+    const [showMenu, setShowMenu] = useState(false)
+    const [showCollabLink, setShowCollabLink] = useState(false)
+    const inputRef = useRef<HTMLInputElement>(null)
+    const [hash, setHash] = useState("")
+    const [isLinkCopied, setIsLinkCopied] = useState(false)
+    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+    function handleCopy() {
+        if(inputRef.current) {
+            navigator.clipboard.writeText(inputRef.current.value)
+            setIsLinkCopied(true)
+        }
+        timeoutRef.current = setTimeout(() => {
+            setIsLinkCopied(false)
+        }, 2000)
+    }
 
     const handleContext = useCallback((ctx: CanvasRenderingContext2D) => {
         contextRef.current = ctx
@@ -155,6 +170,10 @@ function CollabDrawingBoard() {
 
     }, [connectionState, sendMessage, setOnMessageHandler, roomId])
 
+    useEffect(() => {
+        setHash(window.location.hash)
+    }, [])
+
     if(connectionState === ConnectionState.Connecting) {
         return <div className="h-screen w-screen bg-black flex justify-center items-center">
             <div role="status">
@@ -201,9 +220,58 @@ function CollabDrawingBoard() {
 
     if(connectionState === ConnectionState.Connected && shapesManagerRef.current !== null) {
         return <div className="relative">
-            <div className="bg-white text-black text-2xl absolute right-0">
-                collab
+            <div className="fixed text-black bg-white right-2 top-3 rounded-md p-0.5">
+                <div className="flex justify-center items-center">
+                    <ToolbarButton icon={MenuIcon} isActive={false} onClick={() => setShowMenu(prev => !prev)} className=" size-7 md:size-7"/>
+                </div>
             </div>
+
+            {showMenu && 
+                <div className="absolute top-14 right-3 p-1 px-2 bg-white text-slate-900 font-medium rounded-md">
+                    <div className=" cursor-pointer hover:text-black">
+                        <button className="cursor-pointer flex justify-center items-center gap-x-2" onClick={() => {
+                            setShowMenu(false)
+                            setShowCollabLink(true)
+                        }}><FaUsers size={21}/> Live Collab</button>
+                    </div>
+                </div>
+            }
+
+                {showCollabLink && <div className="fixed h-screen w-screen flex justify-center items-center text-center">
+
+                <div className="text-white bg-[#232329]  rounded-2xl max-w-[480px]">
+                    <div className="w-full flex justify-end p-4 pb-3">
+                        <button className="cursor-pointer" onClick={() => setShowCollabLink(false)}>
+                            <X/>
+                        </button>
+                    </div>
+                    <div className="p-8 pt-0">
+                    <h2 className="font-semibold text-2xl mb-4 text-center">Live collaboration</h2>
+                    <div className="flex flex-col justify-start items-start w-full ">
+                        <label className="mb-3 font-semibold" htmlFor="collabLink">Link</label>
+                        <div className="flex justify-between w-full gap-x-4">
+                            <input id="collabLink" type="text" ref={inputRef} readOnly value={`${origin}/collab/canvas${hash}`}
+                            className=" py-2 px-3 bg-[#2e2d39] rounded-md border-red-50 border-[1px] flex-grow focus:outline-none focus:ring-0"
+                            />
+                            <button className="bg-[#A8A5FF] text-[#232329] font-semibold px-3 rounded-md cursor-pointer inline-block w-28" onClick={handleCopy} disabled={isLinkCopied}>{isLinkCopied? "Copied": "Copy Link"}</button>
+                        </div>
+                        <hr className="h-px my-5 bg-white border-0 w-full"/>
+                        <div className="text-[##e3e3e8] text-left text-xs space-y-2.5">
+                            <p className="">
+                                The canvas is shared only with users who have the link, and all updates are transmitted directly between clients using WebSockets, with no data stored on any server.
+                            </p>
+                            <p className="">
+                                If you leave the session, you&apos;ll disconnect from live collaboration, but can continue editing your current canvas locally. Other participants can still work on their version independently.
+                            </p>
+                            <p className="">
+                                This ensures a lightweight, secure, and temporary collaborative space — ideal for spontaneous sketching, brainstorming, or whiteboarding without any sign-up.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>}
+
             {(connectionState === ConnectionState.Connected) && <MainDrawingCanvas shapesManagerRef={shapesManagerRef as React.RefObject<IShapeManager>} handleContext={handleContext} setClearCanvas={setClearCanvas}/>}
         </div>
     }
