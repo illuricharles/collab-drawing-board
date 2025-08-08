@@ -3,8 +3,24 @@ import { RoomManager } from "./services/RoomManager";
 import { CustomWebSocket } from "./types/CustomWebSocket";
 import { ErrorCodes, Message, MessageType } from "@repo/ws-shared-types";
 import {v4 as uuidv4} from 'uuid'
+import dotenv from "dotenv"
+import path from "path"
+dotenv.config({path: path.resolve(__dirname, '../.env')})
 
-const wss = new WebSocketServer({port: 8080})
+const allowedOrigin = process.env.ALLOWED_ORIGIN
+
+const wss = new WebSocketServer({
+    port: 8080,
+    verifyClient: (info, done) => {
+        const origin = info.origin
+        if(origin === allowedOrigin) {
+            done(true)
+        }
+        else {
+            done(false, 403, 'Forbidden')
+        }
+    }
+})
 const HEART_BEAT_INTERVAL = 30000
 
 const roomManager = RoomManager.getInstance()
