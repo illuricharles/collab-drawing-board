@@ -14,16 +14,13 @@ export default class ShapeManager {
 
     addShape(shape: BaseShape) {
         this.shape.set(shape.id, shape)
-        console.log(shape)
     }
     
     clear() {
         this.shape.clear()
     }
     delete(shape: BaseShape) {
-        console.log(shape.id)
         this.shape.delete(shape.id)
-        console.log(this.shape)
     }
 
 }

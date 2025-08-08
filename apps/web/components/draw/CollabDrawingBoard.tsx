@@ -109,7 +109,6 @@ function CollabDrawingBoard() {
 
         if(shapesManagerRef.current === null) {
             shapesManagerRef.current = new CollabShapeManager(roomId, sendMessage)
-            console.log(roomId)
         }
 
         
@@ -119,7 +118,7 @@ function CollabDrawingBoard() {
                 parsedData = JSON.parse(data)
             }
             catch(e) {
-                console.log(e)
+                console.error(e)
                 return
             }
 
@@ -156,14 +155,14 @@ function CollabDrawingBoard() {
                         }
                     } 
                     catch (e) {
-                        console.log(e);
+                        console.error(e);
                         return;
                     }
                     break;
                 }
 
                 default:
-                    console.log('Invalid message type');
+                    console.warn('Invalid message type');
             }
 
         })

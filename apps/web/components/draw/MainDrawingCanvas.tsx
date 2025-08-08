@@ -57,7 +57,6 @@ function MainDrawingCanvas({shapesManagerRef, handleContext, setClearCanvas}: {
         const shapes = shapesManagerRef.current.getAllShapes()
         if(!isInstanceOfCollab) {
             localStorage.setItem('my-drawings', JSON.stringify(shapes))
-            console.log('shapes saved')
         }
         
     }, [shapesManagerRef, isInstanceOfCollab])
@@ -197,7 +196,7 @@ function MainDrawingCanvas({shapesManagerRef, handleContext, setClearCanvas}: {
                     parsedCurrentSavedData = JSON.parse(currentSavedData)
                 }
                 catch(e) {
-                    console.log(e)
+                    console.error(e)
                     return
                 }
             }
@@ -329,7 +328,6 @@ function MainDrawingCanvas({shapesManagerRef, handleContext, setClearCanvas}: {
             // resize logic
             else if(isHandlerSelected && selectedShapeHandlersRef.current) {
                 const {selectedShape, startX, startY, direction, y, x} = selectedShapeHandlersRef.current
-                console.log('resize shape')
                 if(selectedShape instanceof RectangleShape) {
                     if(direction === 'right') {
                         const dw = clientX - startX 
@@ -846,7 +844,6 @@ function MainDrawingCanvas({shapesManagerRef, handleContext, setClearCanvas}: {
             // move logic
             else if(tool === ToolTypes.SELECTION && selectedShapeRef.current) {
                 const shape = selectedShapeRef.current
-                console.log('move shape')
                 if(shape instanceof RectangleShape) {
                     shape.x = clientX - offsetRef.current.x
                     shape.y = clientY - offsetRef.current.y

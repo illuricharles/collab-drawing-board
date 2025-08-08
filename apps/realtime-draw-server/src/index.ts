@@ -43,7 +43,7 @@ wss.on('connection', (ws) => {
         }
 
         catch(e) {
-            console.log(e)
+            console.warn(e)
             if(client.readyState === client.OPEN) {
                 const message = "unable to parse the message. Please check the message and try again."
                 if(client.id) {
@@ -119,7 +119,6 @@ wss.on('connection', (ws) => {
 
     client.on('close', (code, reason) => {
         roomManager.handleClientDisconnection(client)
-        console.log(code, reason.toString())
     })
 
     client.on('error', (error) => {
@@ -130,7 +129,7 @@ wss.on('connection', (ws) => {
 })
 
 wss.on('error', (error) => {
-    console.log(error)
+    console.warn(error)
 })
 
 
