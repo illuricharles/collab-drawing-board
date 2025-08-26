@@ -85,6 +85,11 @@ export default function useWebSocket() {
         messageHandlerRef.current = handler
     }, [])
 
+    function closeConnection(){
+        if(websocketRef.current) {
+            websocketRef.current.close()
+        }
+    }
 
-    return {connectionState, sendMessage, setOnMessageHandler, error, roomId}
+    return {connectionState, sendMessage, setOnMessageHandler, error, roomId, closeConnection}
 }

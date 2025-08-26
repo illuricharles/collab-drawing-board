@@ -17,6 +17,7 @@ import { useRouter } from "next/navigation";
 import { MenuIcon, X } from "lucide-react";
 import { ToolbarButton } from "../ToolBarButton";
 import { FaUsers } from "react-icons/fa";
+import ErrorMessage from "../ui/ErrorMessage";
 
 interface UpdateShapeMessage {
     operationOnShape: 'UpdateShape',
@@ -84,6 +85,7 @@ function CollabDrawingBoard() {
     const [hash, setHash] = useState("")
     const [isLinkCopied, setIsLinkCopied] = useState(false)
     const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+    const [isTouchDevice, setIsTouchDevice] = useState<boolean | null>(null)
 
     function handleCopy() {
         if(inputRef.current) {
@@ -171,9 +173,11 @@ function CollabDrawingBoard() {
 
     useEffect(() => {
         setHash(window.location.hash)
+        setIsTouchDevice("ontouchstart" in window || navigator.maxTouchPoints > 0)
     }, [])
+   
 
-    if(connectionState === ConnectionState.Connecting) {
+    if(connectionState === ConnectionState.Connecting || isTouchDevice === null) {
         return <div className="h-screen w-screen bg-black flex justify-center items-center">
             <div role="status">
                 <svg aria-hidden="true" className="w-8 h-8 text-gray-200 animate-spin dark:text-gray-600 fill-blue-600" viewBox="0 0 100 101" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -185,20 +189,18 @@ function CollabDrawingBoard() {
         </div>
     }
 
+    if(isTouchDevice) {
+        return <ErrorMessage
+        heading="Oops! There Was a Problem"
+        description="Currently optimized for desktop. For the best experience, use a mouse. Touch support is in progress."
+        />
+    }
+
     if(connectionState === ConnectionState.NotConnected) {
-        return <div className="h-screen w-screen bg-black  flex justify-center items-center">
-            <div className="bg-[#232329] p-6  rounded-md max-w-[450px] text-center">
-                <h1 className="text-red-500 text-center text-2xl mb-3">Oops! There Was a Problem</h1>
-                <p className="text-white mb-4 text-lg">unable to connect. Please try again later after sometime.</p>
-                <div className="text-center">
-                    <button className="inline-block px-3 py-1.5 bg-[#A8A5FF] text-[#232329] font-semibold rounded-md cursor-pointer"
-                        onClick={() => router.push('/canvas')}
-                    >
-                        Home
-                    </button>
-                </div>
-            </div>
-        </div>
+        return <ErrorMessage
+        heading="Oops! There Was a Problem"
+        description="unable to connect. Please try again later after sometime."
+        />
     }
 
     if(connectionState === ConnectionState.Error) {
@@ -290,4 +292,4 @@ function CollabDrawingBoard() {
         </div>
 }
 
-export default React.memo(CollabDrawingBoard)
+export default CollabDrawingBoard
